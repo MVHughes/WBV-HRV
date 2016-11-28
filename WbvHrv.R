@@ -29,22 +29,49 @@ HrvValuesOnly$HRV.Segment <- factor(HrvValuesOnly$HRV.Segment)
 HrvValuesOnly$id <- factor(HrvValuesOnly$id)
 levels(HrvValuesOnly$id)
 
+
 HrvValuesOnly$DateTime <- as.POSIXct(HrvValuesOnly$DateTime, format = "%m/%d/%Y %H:%M")
 
 
 #Reformat to how RHRV expects date times to look
 HrvValuesOnly$DateTime <- format(HrvValuesOnly$DateTime, "%d/%m/%Y %H:%M:%S")
 
+HrvValuesOnly <- subset(HrvValuesOnly, HrvValuesOnly$id != "S10NULL5M2" & 
+                          HrvValuesOnly$id != "S10R3M1" & 
+                          HrvValuesOnly$id != "S10WBV1M7" & 
+                          HrvValuesOnly$id != "S10WBV3M7" & 
+                          HrvValuesOnly$id != "S12WBV2M7"  & 
+                          HrvValuesOnly$id != "S12WBV3M7" &
+                          HrvValuesOnly$id != "S15NULL2M2" &
+                          HrvValuesOnly$id != "S16NULL2M2" &
+                          HrvValuesOnly$id != "S17WBV1M7" & 
+                          HrvValuesOnly$id != "S18WBV2M7" &
+                          HrvValuesOnly$id != "S1NULL1M9" &
+                          HrvValuesOnly$id != "S4NULL4M2" &
+                          HrvValuesOnly$id != "S4NULL6M3" &
+                          HrvValuesOnly$id != "S4NULL6M4" &
+                          HrvValuesOnly$id != "S4NULL6M5" &
+                          HrvValuesOnly$id != "S4NULL6M6" &
+                          HrvValuesOnly$id != "S4NULL6M7" &
+                          HrvValuesOnly$id != "S6WBV3M7" &
+                          HrvValuesOnly$id != "S7WBV1M7" &
+                          HrvValuesOnly$id != "S8NULL0M2"
+                        )
+
 #Create additinal
 #HrvValuesOnly$SubjCond <- mutate(HrvValuesOnly, concated_column = paste(Subject, Condition, sep = '_')) 
 
 RRSubsets <- split(HrvValuesOnly, HrvValuesOnly$id, drop=TRUE)
-#SubjSubsets <- split(HrvValuesOnly, HrvValuesOnly$Subject, drop=TRUE)
+
+SubjSubsets <- split(HrvValuesOnly, HrvValuesOnly$Subject, drop=TRUE)
 #SubjCondSubsets <- split(HrvValuesOnly, HrvValuesOnly$SubjCond, drop=TRUE)
 
 #how to get list of first DateTime per each id value?
 #tapply(HrvValuesOnly$DateTime,HrvValuesOnly$id,)
-for ( i in levels(RRSubsets$id) ) { 
+
+options(warn=-1)
+for (i in 1:795) {
+
 BegTime <- RRSubsets[[i]]$DateTime[1]
 
 export <- data.frame(RRSubsets[[i]]$RR)
@@ -70,15 +97,15 @@ md <- CreateTimeAnalysis(md, size = 300, interval = 7.8125)
 #export <- as.character.factor(RRSubsets[[i]]$id[1])
 
 
-md <- CreateFreqAnalysis(md)
-md <- CalculatePowerBand(md, indexFreqAnalysis= 1,
-                         type = "wavelet", wavelet = "d4", bandtolerance = 0.01)
+#md <- CreateFreqAnalysis(md)
+#md <- CalculatePowerBand(md, indexFreqAnalysis= 1,
+#                         type = "wavelet", wavelet = "d4", bandtolerance = 0.01)
 
-md <- CreateFreqAnalysis(md)
-md <- CalculatePowerBand(md, indexFreqAnalysis= 2,
-                         type = "fourier", shift = 300, size = 300)
+#md <- CreateFreqAnalysis(md)
+#md <- CalculatePowerBand(md, indexFreqAnalysis= 2,
+#                         type = "fourier", shift = 300, size = 300)
 
-PlotPowerBand(md, indexFreqAnalysis = 1, ymax = 700, ymaxratio = 50)
+#PlotPowerBand(md, indexFreqAnalysis = 1, ymax = 700, ymaxratio = 50)
 
 #HRVData$TimeAnalysis[[num+1]]$SDNN=sd(HRVData$Beat$RR)
 SDNN <- md$TimeAnalysis[[1]]$SDNN
@@ -93,16 +120,98 @@ pNN50 <- md$TimeAnalysis[[1]]$pNN50
 rMSSD <- md$TimeAnalysis[[1]]$rMSSD
 
 
-nu <- md$FreqAnalysis[[1]]$LF[1] + md$FreqAnalysis[[1]]$HF[1]
-LFnu <- md$FreqAnalysis[[1]]$LF[1] / nu
-HFnu <- md$FreqAnalysis[[1]]$HF[1] / nu
-LFHF <- md$FreqAnalysis[[1]]$LFHF[1]
+#nu <- md$FreqAnalysis[[1]]$LF[1] + md$FreqAnalysis[[1]]$HF[1]
+#LFnu <- md$FreqAnalysis[[1]]$LF[1] / nu
+#HFnu <- md$FreqAnalysis[[1]]$HF[1] / nu
+#LFHF <- md$FreqAnalysis[[1]]$LFHF[1]
 
-statistics <- as.matrix(t(data_frame(c(id, SDNN, pNN50, rMSSD, LFnu, HFnu, LFHF))))
-write.table(statistics, file = ExportFileName, append = TRUE, quote = FALSE, sep = ",", eol = "\n")
+statistics <- data_frame(id, SDNN, pNN50, rMSSD)
+
+write.table(statistics, file = ExportFileName, append = TRUE, quote = FALSE, sep = ",", eol = "\n", row.names = FALSE, col.names = FALSE)
 
 
 }
+
+
+SubjExportFileTitle <- "SubStatistics"
+SubjExportFileName = paste(SubjExportFileTitle, "csv", sep = ".")
+SubjStatistics <- as.matrix(t(data_frame(c("Subject", "SDNN", "pNN50", "rMSSD", "LFnu", "HFnu", "LFHF"))))
+write.table(SubjStatistics, ExportFileName, sep=",", col.names=FALSE, row.names = FALSE, append = FALSE)
+
+
+SubjSubsets <- split(HrvValuesOnly, HrvValuesOnly$Subject, drop=TRUE)
+for (i in 1:18) {
+  
+  BegTime <- SubjSubsets[[i]]$DateTime[1]
+  
+  export <- data.frame(SubjSubsets[[i]]$RR)
+  FileName = paste(SubjSubsets[[i]]$Subject[1], "csv", sep = ".")
+  write.table(export, FileName, sep=",", col.names=FALSE, row.names = FALSE)
+  
+  
+  md <- CreateHRVData(Verbose = TRUE)
+  md <- LoadBeatRR(md, FileName, RecordPath = ".", scale = 0.001, datetime = BegTime)
+  
+  md <- BuildNIHR(md)
+  md <- FilterNIHR(md)
+  
+  md <- InterpolateNIHR(md, freqhr = 4, method = "linear")
+  
+  PlotNIHR(md)
+  PlotHR(md)
+  
+  md <- CreateTimeAnalysis(md, size = 300, interval = 7.8125)
+  
+  
+  #Current Dumpster Fire -- export summary files so can write to a file
+  #export <- as.character.factor(RRSubsets[[i]]$id[1])
+  
+  
+  #md <- CreateFreqAnalysis(md)
+  #md <- CalculatePowerBand(md, indexFreqAnalysis= 1,
+  #                         type = "wavelet", wavelet = "d4", bandtolerance = 0.01)
+  
+  #md <- CreateFreqAnalysis(md)
+  #md <- CalculatePowerBand(md, indexFreqAnalysis= 2,
+  #                         type = "fourier", shift = 300, size = 300)
+  
+  #PlotPowerBand(md, indexFreqAnalysis = 1, ymax = 700, ymaxratio = 50)
+  
+  #HRVData$TimeAnalysis[[num+1]]$SDNN=sd(HRVData$Beat$RR)
+  SDNN <- md$TimeAnalysis[[1]]$SDNN
+  
+  
+  #RRDiffs = diff(HRVData$Beat$RR)
+  #RRDiffs50=RRDiffs[abs(RRDiffs)>50]
+  #HRVData$TimeAnalysis[[num+1]]$pNN50=100.0*length(RRDiffs50)/length(RRDiffs)
+  pNN50 <- md$TimeAnalysis[[1]]$pNN50
+  
+  #HRVData$TimeAnalysis[[num+1]]$rMSSD=sqrt(mean(RRDiffs^2))
+  rMSSD <- md$TimeAnalysis[[1]]$rMSSD
+  
+  
+  #nu <- md$FreqAnalysis[[1]]$LF[1] + md$FreqAnalysis[[1]]$HF[1]
+  #LFnu <- md$FreqAnalysis[[1]]$LF[1] / nu
+  #HFnu <- md$FreqAnalysis[[1]]$HF[1] / nu
+  #LFHF <- md$FreqAnalysis[[1]]$LFHF[1]
+  
+  SubjStatistics <- data_frame(id, SDNN, pNN50, rMSSD)
+  
+  write.table(SubjStatistics, file = SubjExportFileName, append = TRUE, quote = FALSE, sep = ",", eol = "\n", row.names = FALSE, col.names = FALSE)
+  
+  
+}
+
+
+
+
+
+
+
+
+
+
+
 
 #Giant Dumpster Fire
 plot.xts(tmp3, main="Time Series Occupational Exposures and Heart Rate Variability")  #using all the defaults
