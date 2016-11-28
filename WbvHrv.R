@@ -3,14 +3,18 @@ pacman::p_load(devtools, stats, AICcmodavg, arm, faraway, lme4, astsa, RHRV, pbk
 
 options(max.print = 222)
 #FileLocation = "G:/HrvValuesOnly.csv"
-FileLocation = "~/Documents/WBV-HRV"
+#FileLocation = "~/Documents/WBV-HRV"
 #RecordLocation = "G:/"
-RecordLocation = "~/Documents/WBV-HRV"
+#RecordLocation = "~/Documents/WBV-HRV"
+FileLocation = "D:/Backup/WIP/Maggie/Thesis/9. Lotta-Bose - Repeated Measures Study of Whole Body Vibration Exposure and Heart Rate Variability in Truck Drivers/Data/Intermediate Data/WBV-HRV"
+RecordLocation = "D:/Backup/WIP/Maggie/Thesis/9. Lotta-Bose - Repeated Measures Study of Whole Body Vibration Exposure and Heart Rate Variability in Truck Drivers/Data/Intermediate Data/WBV-HRV"
+#setwd("~/Documents/WBV-HRV")
+setwd("D:/Backup/WIP/Maggie/Thesis/9. Lotta-Bose - Repeated Measures Study of Whole Body Vibration Exposure and Heart Rate Variability in Truck Drivers/Data/Intermediate Data/WBV-HRV")
 
-setwd("~/Documents/WBV-HRV")
 
 rm(RRSubsets)
 rm(HrvValuesOnly)
+rm(SubjSubsets)
 
 par(mfrow=c(1,1))
 HrvValuesOnly <- read.csv("HrvValuesOnly.csv", stringsAsFactors=FALSE)
@@ -29,7 +33,7 @@ HrvValuesOnly$DateTime <- as.POSIXct(HrvValuesOnly$DateTime, format = "%m/%d/%Y 
 
 
 #Reformat to how RHRV expects date times to look
-HrvValuesOnly$DateTime <- format(HrvValuesOnly$DateTime, "%d/%m/%Y %H:%M:%S")
+#HrvValuesOnly$DateTime <- format(HrvValuesOnly$DateTime, "%d/%m/%Y %H:%M:%S")
 
 HrvValuesOnly <- subset(HrvValuesOnly, HrvValuesOnly$id != "S10NULL5M2" & 
                           HrvValuesOnly$id != "S10R3M1" & 
@@ -57,7 +61,6 @@ HrvValuesOnly <- subset(HrvValuesOnly, HrvValuesOnly$id != "S10NULL5M2" &
 #HrvValuesOnly$SubjCond <- mutate(HrvValuesOnly, concated_column = paste(Subject, Condition, sep = '_')) 
 
 RRSubsets <- split(HrvValuesOnly, HrvValuesOnly$id, drop=TRUE)
-RRSubsets$DateTime <- as.POSIXct(RRSubsets$DateTime, format = "%d/%m/%Y %H:%M:%S")
 
 ExportFileTitle <- "RRStatistics"
 ExportFileName = paste(ExportFileTitle, "csv", sep = ".")
@@ -75,16 +78,15 @@ SubjSubsets <- split(HrvValuesOnly, HrvValuesOnly$Subject, drop=TRUE)
 options(warn=-1)
 for (i in 1:795) {
 
-BegTime <- RRSubsets[[i]]$DateTime[1]
+BegTime <- format(strptime(as.character(RRSubsets[[i]]$DateTime[1]), "%Y-%m-%d %H:%M:%S"), "%d/%m/%Y %H:%M:%S")
 
 export <- data.frame(RRSubsets[[i]]$RR)
 FileName = paste(RRSubsets[[i]]$id[1], "csv", sep = ".")
 write.table(export, FileName, sep=",", col.names=FALSE, row.names = FALSE)
 
-id <- as.character.factor(RRSubsets[[i]]$id[1])
 
-RRSubsets[[i]]$DateTime <- as.POSIXct(RRSubsets[[i]]$DateTime, format = "%d/%m/%Y %H:%M:%S")
-RRSubsets[[i]]$DateTime <- format(RRSubsets[[i]]$DateTime, "%m/%d/%Y %H:%M:%S")
+
+#RRSubsets[[i]]$DateTime <- format(RRSubsets[[i]]$DateTime, "%m/%d/%Y %H:%M:%S")
 
 BegTime <- RRSubsets[[i]]$DateTime[1]
 
@@ -145,6 +147,7 @@ rMSSD <- md$TimeAnalysis[[1]]$rMSSD
 #HFnu <- md$FreqAnalysis[[1]]$HF[1] / nu
 #LFHF <- md$FreqAnalysis[[1]]$LFHF[1]
 
+id <- as.character.factor(RRSubsets[[i]]$id[1])
 statistics <- data_frame(id, BegTime, SDNN, pNN50, rMSSD)
 
 write.table(statistics, file = ExportFileName, append = TRUE, quote = FALSE, sep = ",", eol = "\n", row.names = FALSE, col.names = FALSE)
