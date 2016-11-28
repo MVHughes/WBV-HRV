@@ -9,11 +9,6 @@ RecordLocation = "~/Documents/WBV-HRV"
 
 setwd("~/Documents/WBV-HRV")
 
-ExportFileTitle <- "RRStatistics"
-ExportFileName = paste(ExportFileTitle, "csv", sep = ".")
-statistics <- as.matrix(t(data_frame(c("id", "SDNN", "pNN50", "rMSSD", "LFnu", "HFnu", "LFHF"))))
-write.table(statistics, ExportFileName, sep=",", col.names=FALSE, row.names = FALSE, append = FALSE)
-
 rm(RRSubsets)
 rm(HrvValuesOnly)
 
@@ -62,8 +57,16 @@ HrvValuesOnly <- subset(HrvValuesOnly, HrvValuesOnly$id != "S10NULL5M2" &
 #HrvValuesOnly$SubjCond <- mutate(HrvValuesOnly, concated_column = paste(Subject, Condition, sep = '_')) 
 
 RRSubsets <- split(HrvValuesOnly, HrvValuesOnly$id, drop=TRUE)
+RRSubsets$DateTime <- as.POSIXct(RRSubsets$DateTime, format = "%d/%m/%Y %H:%M:%S")
+
+ExportFileTitle <- "RRStatistics"
+ExportFileName = paste(ExportFileTitle, "csv", sep = ".")
+statistics <- as.matrix(t(data_frame(c("id", "Time", "SDNN", "pNN50", "rMSSD", "LFnu", "HFnu", "LFHF"))))
+write.table(statistics, ExportFileName, sep=",", col.names=FALSE, row.names = FALSE, append = FALSE)
+
 
 SubjSubsets <- split(HrvValuesOnly, HrvValuesOnly$Subject, drop=TRUE)
+
 #SubjCondSubsets <- split(HrvValuesOnly, HrvValuesOnly$SubjCond, drop=TRUE)
 
 #how to get list of first DateTime per each id value?
@@ -78,6 +81,12 @@ export <- data.frame(RRSubsets[[i]]$RR)
 FileName = paste(RRSubsets[[i]]$id[1], "csv", sep = ".")
 write.table(export, FileName, sep=",", col.names=FALSE, row.names = FALSE)
 
+id <- as.character.factor(RRSubsets[[i]]$id[1])
+
+RRSubsets[[i]]$DateTime <- as.POSIXct(RRSubsets[[i]]$DateTime, format = "%d/%m/%Y %H:%M:%S")
+RRSubsets[[i]]$DateTime <- format(RRSubsets[[i]]$DateTime, "%m/%d/%Y %H:%M:%S")
+
+BegTime <- RRSubsets[[i]]$DateTime[1]
 
 md <- CreateHRVData(Verbose = TRUE)
 md <- LoadBeatRR(md, FileName, RecordPath = ".", scale = 0.001, datetime = BegTime)
@@ -87,16 +96,27 @@ md <- FilterNIHR(md)
 
 md <- InterpolateNIHR(md, freqhr = 4, method = "linear")
 
-PlotNIHR(md)
-PlotHR(md)
+MainTitle = paste("Non Interpolated Heart Rate During ", RRSubsets[[i]]$Condition[1], " Condition for Subject ", RRSubsets[[i]]$Subject[1], sep = " ")
+XTitle = "Time"
+YTitle = "Milliseconds"
+filename <-  paste("NIHR", RRSubsets[[i]]$id[1], "jpg", sep=".")
+jpeg(file=filename)
+PlotNIHR(md, main=MainTitle, xlab=XTitle, ylab=YTitle)
+dev.off()
+
+MainTitle = paste("Interpolated Heart Rate During ", RRSubsets[[i]]$Condition[1], " Condition for Subject ", RRSubsets[[i]]$Subject[1], sep = " ")
+XTitle = "Time"
+YTitle = "Milliseconds"
+filename <-  paste("HR", RRSubsets[[i]]$id[1], "jpg", sep=".")
+jpeg(file=filename)
+PlotHR(md, main=MainTitle, xlab=XTitle, ylab=YTitle)
+dev.off()
+
 
 md <- CreateTimeAnalysis(md, size = 300, interval = 7.8125)
 
 
 #Current Dumpster Fire -- export summary files so can write to a file
-#export <- as.character.factor(RRSubsets[[i]]$id[1])
-
-
 #md <- CreateFreqAnalysis(md)
 #md <- CalculatePowerBand(md, indexFreqAnalysis= 1,
 #                         type = "wavelet", wavelet = "d4", bandtolerance = 0.01)
@@ -125,11 +145,29 @@ rMSSD <- md$TimeAnalysis[[1]]$rMSSD
 #HFnu <- md$FreqAnalysis[[1]]$HF[1] / nu
 #LFHF <- md$FreqAnalysis[[1]]$LFHF[1]
 
-statistics <- data_frame(id, SDNN, pNN50, rMSSD)
+statistics <- data_frame(id, BegTime, SDNN, pNN50, rMSSD)
 
 write.table(statistics, file = ExportFileName, append = TRUE, quote = FALSE, sep = ",", eol = "\n", row.names = FALSE, col.names = FALSE)
 
+Subject <- RRSubsets[[i]]$Subject
+DateTime <- RRSubsets[[i]]$DateTime
+RR <- RRSubsets[[i]]$RR
+Condition <- RRSubsets[[i]]$Condition
+tmp <- data_frame(Subject, DateTime, RR, Condition)
 
+tmp$DateTime <- as.POSIXct(tmp$DateTime, format = "%m/%d/%Y %H:%M:%S")
+
+
+MainTitle = paste("R-R Durations Over ", RRSubsets[[i]]$Condition[1], " Condition for Subject ", RRSubsets[[i]]$Subject[1], sep = " ")
+XTitle = "Time"
+YTitle = "Milliseconds"
+filename <-  paste("Time Distribution of ", MainTitle, "jpg", sep=".")
+jpeg(file=filename)
+ggplot(data=tmp, aes(y=RR, x=DateTime, colour = Condition)) + 
+  geom_point(na.rm=FALSE) +
+  xlab(XTitle) + ylab(YTitle) + ggtitle(MainTitle) +
+  scale_x_datetime(labels = date_format("%H:%M"))
+dev.off()
 }
 
 
@@ -141,13 +179,16 @@ write.table(SubjStatistics, ExportFileName, sep=",", col.names=FALSE, row.names 
 
 SubjSubsets <- split(HrvValuesOnly, HrvValuesOnly$Subject, drop=TRUE)
 for (i in 1:18) {
+  id <- as.character.factor(SubjSubsets[[i]]$Subject[1])
+  
+  SubjSubsets[[i]]$DateTime <- as.POSIXct(SubjSubsets[[i]]$DateTime, format = "%d/%m/%Y %H:%M:%S")
+  SubjSubsets[[i]]$DateTime <- format(SubjSubsets[[i]]$DateTime, "%m/%d/%Y %H:%M:%S")
   
   BegTime <- SubjSubsets[[i]]$DateTime[1]
   
   export <- data.frame(SubjSubsets[[i]]$RR)
   FileName = paste(SubjSubsets[[i]]$Subject[1], "csv", sep = ".")
   write.table(export, FileName, sep=",", col.names=FALSE, row.names = FALSE)
-  
   
   md <- CreateHRVData(Verbose = TRUE)
   md <- LoadBeatRR(md, FileName, RecordPath = ".", scale = 0.001, datetime = BegTime)
@@ -157,8 +198,22 @@ for (i in 1:18) {
   
   md <- InterpolateNIHR(md, freqhr = 4, method = "linear")
   
-  PlotNIHR(md)
-  PlotHR(md)
+  
+  MainTitle = paste("Non Interpolated Heart Rate for Subject ", SubjSubsets[[i]]$Subject[1], sep = " ")
+  XTitle = "Time"
+  YTitle = "Milliseconds"
+  filename <-  paste("NIHR", SubjSubsets[[i]]$Subject[1], "jpg", sep=".")
+  jpeg(file=filename)
+  PlotNIHR(md, main=MainTitle, xlab=XTitle, ylab=YTitle)
+  dev.off()
+  
+  MainTitle = paste("Interpolated Heart Rate for Subject ", SubjSubsets[[i]]$Subject[1], sep = " ")
+  XTitle = "Time"
+  YTitle = "Milliseconds"
+  filename <-  paste("HR", SubjSubsets[[i]]$Subject[1], "jpg", sep=".")
+  jpeg(file=filename)
+  PlotHR(md, main=MainTitle, xlab=XTitle, ylab=YTitle)
+  dev.off()
   
   md <- CreateTimeAnalysis(md, size = 300, interval = 7.8125)
   
@@ -195,21 +250,46 @@ for (i in 1:18) {
   #HFnu <- md$FreqAnalysis[[1]]$HF[1] / nu
   #LFHF <- md$FreqAnalysis[[1]]$LFHF[1]
   
-  SubjStatistics <- data_frame(id, SDNN, pNN50, rMSSD)
+  SubjStatistics <- data_frame(id, BegTime, SDNN, pNN50, rMSSD)
   
   write.table(SubjStatistics, file = SubjExportFileName, append = TRUE, quote = FALSE, sep = ",", eol = "\n", row.names = FALSE, col.names = FALSE)
+ Subject <- SubjSubsets[[i]]$Subject
+ DateTime <- SubjSubsets[[i]]$DateTime
+ RR <- SubjSubsets[[i]]$RR
+ Condition <- SubjSubsets[[i]]$Condition
+  tmp <- data_frame(Subject, DateTime, RR, Condition)
+
+  tmp$DateTime <- as.POSIXct(tmp$DateTime, format = "%m/%d/%Y %H:%M:%S")
   
+  
+  MainTitle = paste("Interpolated Heart Rate During ", RRSubsets[[i]]$Condition[1], " Condition for Subject ", RRSubsets[[i]]$Subject[1], sep = " ")
+  filename <-  paste(MainTitle, "jpg", sep=".")
+  jpeg(file=filename)
+  PlotHR(md, main=MainTitle, xlab=XTitle, ylab=YTitle)
+  dev.off()
+  MainTitle = paste("R-R Durations Over Entire Study for Subject ", SubjSubsets[[i]]$Subject[1], sep = " ")
+  XTitle = "Time"
+    YTitle = "Milliseconds"
+ 
+    ggplot(data=tmp, aes(y=RR, x=DateTime, colour = Condition)) + 
+      geom_point(na.rm=FALSE) +
+      xlab(XTitle) + ylab(YTitle) + ggtitle(MainTitle) +
+      scale_x_datetime(labels = date_format("%H:%M"))
+  dev.off()
   
 }
+)
 
 
 
-
-
-
-
-
-
+#Steaming Dumpster Fire
+#To Do With Vibration 
+#p <- ggplot() + 
+#  geom_line(data = SubjStatistics[[i]], aes(x = SubjSubsets[[i]]$DateTime, y = SubjSubsets[[i]]$RR, color = "red")) +
+#  geom_line(data = jobsAFAM2, aes(x = data_date, y = Percent.Change, color = "blue"))  +
+#  xlab('data_date') +
+#  ylab('percent.change') 
+#
 
 
 
