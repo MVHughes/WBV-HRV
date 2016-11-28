@@ -1,19 +1,27 @@
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(stats, AICcmodavg, arm, faraway, lme4, astsa, RHRV, pbkrtest, MASS, ggplot2, ggthemes, dplyr, timeSeries, timeDate, TSA, memisc, lubridate, forecast, zoo, stats, Hmisc, reshape2, RColorBrewer, caTools, xts, scatterplot3d, lattice, latticeExtra, gridExtra, car)
 
-options(max.print = 22)
+options(max.print = 222)
 
 par(mfrow=c(1,1))
+HrvValuesOnly <- read.csv("G:/HrvValuesOnly.csv", stringsAsFactors=FALSE)
 attach(HrvValuesOnly)
 
-proposal <- read.delim("~/Dropbox/thesis/HRVPilotTidyData_Cuts_Static.txt", header=FALSE, stringsAsFactors=FALSE)
-proposal <- rename(proposal, Measurement=V1, DateTime=V2, Speed=V3, Category=V4, Air=V5, Big_Air=V6, Sound=V7, A8=V8, VSA8=V9, VDV8=V10, VSVDV8=V11, SDANN=V12, RMSSD=V13, R_RMSSD=V14, pNN50=V15, R50=V16, pNN20=V17, R20=V18)
-proposal <- proposal[-1,]
-proposal$DateTime <- as.POSIXct(proposal$DateTime, format="%m/%d/%y %H:%M")
-
+HrvValuesOnly$Initial.DateTime <- ymd_hms(HrvValuesOnly$Initial.DateTime)
+#rm(HrvValuesOnly)
 #Create table of subject measurement durations, 
-sub59 <- subset(proposal, Measurement == 59)
 
+HrvValuesOnly$Subject <- factor(HrvValuesOnly$Subject)
+HrvValuesOnly$Period <- factor(HrvValuesOnly$Period)
+HrvValuesOnly$Condition <- factor(HrvValuesOnly$Condition)
+HrvValuesOnly$HRV.Segment <- factor(HrvValuesOnly$HRV.Segment)
+HrvValuesOnly$id <- factor(HrvValuesOnly$id)
+
+levels(HrvValuesOnly$id)
+subsets <- split(HrvValuesOnly, HrvValuesOnly$id, drop=TRUE)
+
+str(subsets)
+head(subsets$S10NULL0M1)
 
 hrvall66 <- read.csv("~/Dropbox/hrvall66.csv", stringsAsFactors=FALSE)
 hrvall66$Date<-seq.POSIXt(c(ISOdatetime(2015, 8, 6, 13, 25, 23)), by="min", length.out=118)
