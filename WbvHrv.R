@@ -2,6 +2,8 @@ if (!require("pacman")) install.packages("pacman")
 pacman::p_load(stats, AICcmodavg, arm, faraway, lme4, astsa, RHRV, pbkrtest, MASS, ggplot2, ggthemes, dplyr, timeSeries, timeDate, TSA, memisc, lubridate, forecast, zoo, stats, Hmisc, reshape2, RColorBrewer, caTools, xts, scatterplot3d, lattice, latticeExtra, gridExtra, car)
 
 options(max.print = 222)
+FileLocation = "G:/HrvValuesOnly.csv"
+RecordLocation = "G:/"
 
 par(mfrow=c(1,1))
 HrvValuesOnly <- read.csv("G:/HrvValuesOnly.csv", stringsAsFactors=FALSE)
@@ -21,17 +23,26 @@ levels(HrvValuesOnly$id)
 subsets <- split(HrvValuesOnly, HrvValuesOnly$id, drop=TRUE)
 
 str(subsets)
-head(subsets$S10NULL0M1)
+head(subsets$S10NULL0M1$Actual.time.hr)
+str(subsets$S10NULL0M1$DateTime)
+subsets$S10NULL0M1$DateTime <- as.POSIXct(subsets$S10NULL0M1$DateTime, format = "%m/%d/%Y %H:%M")
+subsets$S10NULL0M1$DateTime <- format(subsets$S10NULL0M1$DateTime, "%d/%m/%Y %H:%M:%S")
 
-hrvall66 <- read.csv("~/Dropbox/hrvall66.csv", stringsAsFactors=FALSE)
-hrvall66$Date<-seq.POSIXt(c(ISOdatetime(2015, 8, 6, 13, 25, 23)), by="min", length.out=118)
-SDNN <- as.xts(hrvall66$SDNN, hrvall66$Date)
-xts::plot.xts(SDNN)
-xts::plot.xts(as.xts(hrvall66$Pm2.5, hrvall66$Date))
-xts::plot.xts(as.xts(hrvall66$Noise, hrvall66$Date))
-xts::plot.xts(as.xts(hrvall66$RMS.VDV, hrvall66$Date))
-datepm <- na.omit(hrvall66$Pm2.5)
 
+export <- data.frame(subsets$S10NULL0M1$RR)
+FileName = paste(subsets$S10NULL0M1$id[1], "csv", sep = ".")
+write.table(export, FileName, sep=",", col.names=FALSE, row.names = FALSE)
+
+
+BegTime <- subsets$S10NULL0M1$DateTime[1]
+
+md <- CreateHRVData(Verbose = TRUE)
+md <- LoadBeatRR(md, FileName, RecordPath = ".", scale = 0.001, datetime = BegTime)
+
+md <- BuildNIHR(md)
+md <- InterpolateNIHR(md, freqhr = 4, method = "linear")
+md <- CreateTimeAnalysis(md, size = 300, interval = 7.8125)
+md <- CreateFreqAnalysis(md)
 
 
 
