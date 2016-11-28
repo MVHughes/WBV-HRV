@@ -1,23 +1,24 @@
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(stats, AICcmodavg, arm, faraway, lme4, astsa, RHRV, pbkrtest, MASS, ggplot2, ggthemes, dplyr, timeSeries, timeDate, TSA, memisc, lubridate, forecast, zoo, stats, Hmisc, reshape2, RColorBrewer, caTools, xts, scatterplot3d, lattice, latticeExtra, gridExtra, car)
+pacman::p_load(devtools, stats, AICcmodavg, arm, faraway, lme4, astsa, RHRV, pbkrtest, MASS, ggplot2, ggthemes, dplyr, timeSeries, timeDate, TSA, memisc, lubridate, forecast, zoo, Hmisc, reshape2, RColorBrewer, caTools, xts, scatterplot3d, lattice, latticeExtra, gridExtra, car)
 
 options(max.print = 222)
-FileLocation = "G:/HrvValuesOnly.csv"
-RecordLocation = "G:/"
+#FileLocation = "G:/HrvValuesOnly.csv"
+FileLocation = "~/Documents/WBV-HRV"
+#RecordLocation = "G:/"
+RecordLocation = "~/Documents/WBV-HRV"
+
+setwd("~/Documents/WBV-HRV")
 
 ExportFileTitle <- "RRStatistics"
 ExportFileName = paste(ExportFileTitle, "csv", sep = ".")
 statistics <- c("id", "SDNN", "pNN50", "rMSSD", "LFnu", "HFnu", "LFnu-HFnu")
-write.table(statistics, ExportFileName, sep=",", col.names=TRUE, row.names = FALSE)
+write.table(statistics, ExportFileName, sep=",", col.names=TRUE, row.names = FALSE, append = FALSE)
 
 
 par(mfrow=c(1,1))
-HrvValuesOnly <- read.csv("G:/HrvValuesOnly.csv", stringsAsFactors=FALSE)
+HrvValuesOnly <- read.csv("HrvValuesOnly.csv", stringsAsFactors=FALSE)
 attach(HrvValuesOnly)
 
-HrvValuesOnly$Initial.DateTime <- ymd_hms(HrvValuesOnly$Initial.DateTime)
-#rm(HrvValuesOnly)
-#Create table of subject measurement durations, 
 
 HrvValuesOnly$Subject <- factor(HrvValuesOnly$Subject)
 HrvValuesOnly$Period <- factor(HrvValuesOnly$Period)
@@ -28,40 +29,82 @@ levels(HrvValuesOnly$id)
 
 HrvValuesOnly$DateTime <- as.POSIXct(HrvValuesOnly$DateTime, format = "%m/%d/%Y %H:%M")
 
+
 #Reformat to how RHRV expects date times to look
 HrvValuesOnly$DateTime <- format(HrvValuesOnly$DateTime, "%d/%m/%Y %H:%M:%S")
 
+#Create additinal
+HrvValuesOnly$SubjCond <- mutate(HrvValuesOnly, concated_column = paste(Subject, Condition, sep = '_')) 
+
+RRSubsets <- split(HrvValuesOnly, HrvValuesOnly$id, drop=TRUE)
+SubjSubsets <- split(HrvValuesOnly, HrvValuesOnly$Subject, drop=TRUE)
+#SubjCondSubsets <- split(HrvValuesOnly, HrvValuesOnly$SubjCond, drop=TRUE)
 
 
-subsets <- split(HrvValuesOnly, HrvValuesOnly$id, drop=TRUE)
-
-str(subsets)
-head(subsets$S10NULL0M1$Actual.time.hr)
-str(subsets$S10NULL0M1$DateTime)
+str(RRSubsets)
+head(RRSubsets$S10NULL0M1$Actual.time.hr)
+str(RRSubsets$S10NULL0M1$DateTime)
 
 
 
-BegTime <- subsets$S10NULL0M1$DateTime[1]
+BegTime <- RRSubsets$S10NULL0M1$DateTime[1]
 
-export <- data.frame(subsets$S10NULL0M1$RR)
-FileName = paste(subsets$S10NULL0M1$id[1], "csv", sep = ".")
+export <- data.frame(RRSubsets$S10NULL0M1$RR)
+FileName = paste(RRSubsets$S10NULL0M1$id[1], "csv", sep = ".")
 write.table(export, FileName, sep=",", col.names=FALSE, row.names = FALSE)
-
 
 
 md <- CreateHRVData(Verbose = TRUE)
 md <- LoadBeatRR(md, FileName, RecordPath = ".", scale = 0.001, datetime = BegTime)
 
 md <- BuildNIHR(md)
+md <- FilterNIHR(md)
+
 md <- InterpolateNIHR(md, freqhr = 4, method = "linear")
+
+PlotNIHR(md)
+PlotHR(md)
+
 md <- CreateTimeAnalysis(md, size = 300, interval = 7.8125)
 
+
+data(md)
+
 #Current Dumpster Fire -- export summary files so can write to a file
-export <- c(subsets$S10NULL0M1$id[1], md$TimeAnalysis$SDNN[,0], md$TimeAnalysis$pNN50, md$TimeAnalysis$rMMSD)
+export <- c(RRSubsets$S10NULL0M1$id[1])
 md <- CreateFreqAnalysis(md)
+md <- CalculatePowerBand(md, indexFreqAnalysis= 1, size = 300, shift = 30 )
+PlotPowerBand(md, indexFreqAnalysis = 1, ymax = 700, ymaxratio = 50)
 
 #Dumpster Fire
 head(md$FreqAnalysis[[1]])
+
+
+id <- RRSubsets$S10NULL0M1$id[1]
+
+#
+HRVData$TimeAnalysis[[num+1]]$SDNN=sd(HRVData$Beat$RR)
+SDNN <- md$TimeAnalysis[[1]]$SDNN
+
+
+#RRDiffs = diff(HRVData$Beat$RR)
+#RRDiffs50=RRDiffs[abs(RRDiffs)>50]
+#HRVData$TimeAnalysis[[num+1]]$pNN50=100.0*length(RRDiffs50)/length(RRDiffs)
+pNN50 <- md$TimeAnalysis[[1]]$pNN50
+
+#HRVData$TimeAnalysis[[num+1]]$rMSSD=sqrt(mean(RRDiffs^2))
+rMSSD <- md$TimeAnalysis[[1]]$rMMSD
+
+
+nu <- md$FreqAnalysis[[1]]$LF + md$FreqAnalysis[[1]]$HF
+LFnu <- md$FreqAnalysis[[1]]$LF / nu
+HFnu <- md$FreqAnalysis[[1]]$HF / nu
+LFHF <- md$FreqAnalysis[[1]]$LFHF
+
+statistics <- c(id, SDNN, pNN50, rMSSD, LFnu, HFnu, LFnuHFnu)
+write.table(statistics, file = ExportFileName, append = TRUE, quote = FALSE, sep = ",", eol = "\n")
+
+
 
 
 #Giant Dumpster Fire
