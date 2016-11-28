@@ -5,6 +5,12 @@ options(max.print = 222)
 FileLocation = "G:/HrvValuesOnly.csv"
 RecordLocation = "G:/"
 
+ExportFileTitle <- "RRStatistics"
+ExportFileName = paste(ExportFileTitle, "csv", sep = ".")
+statistics <- c("id", "SDNN", "pNN50", "rMSSD", "LFnu", "HFnu", "LFnu-HFnu")
+write.table(statistics, ExportFileName, sep=",", col.names=TRUE, row.names = FALSE)
+
+
 par(mfrow=c(1,1))
 HrvValuesOnly <- read.csv("G:/HrvValuesOnly.csv", stringsAsFactors=FALSE)
 attach(HrvValuesOnly)
@@ -18,23 +24,30 @@ HrvValuesOnly$Period <- factor(HrvValuesOnly$Period)
 HrvValuesOnly$Condition <- factor(HrvValuesOnly$Condition)
 HrvValuesOnly$HRV.Segment <- factor(HrvValuesOnly$HRV.Segment)
 HrvValuesOnly$id <- factor(HrvValuesOnly$id)
-
 levels(HrvValuesOnly$id)
+
+HrvValuesOnly$DateTime <- as.POSIXct(HrvValuesOnly$DateTime, format = "%m/%d/%Y %H:%M")
+
+#Reformat to how RHRV expects date times to look
+HrvValuesOnly$DateTime <- format(HrvValuesOnly$DateTime, "%d/%m/%Y %H:%M:%S")
+
+
+
 subsets <- split(HrvValuesOnly, HrvValuesOnly$id, drop=TRUE)
 
 str(subsets)
 head(subsets$S10NULL0M1$Actual.time.hr)
 str(subsets$S10NULL0M1$DateTime)
-subsets$S10NULL0M1$DateTime <- as.POSIXct(subsets$S10NULL0M1$DateTime, format = "%m/%d/%Y %H:%M")
-subsets$S10NULL0M1$DateTime <- format(subsets$S10NULL0M1$DateTime, "%d/%m/%Y %H:%M:%S")
 
+
+
+BegTime <- subsets$S10NULL0M1$DateTime[1]
 
 export <- data.frame(subsets$S10NULL0M1$RR)
 FileName = paste(subsets$S10NULL0M1$id[1], "csv", sep = ".")
 write.table(export, FileName, sep=",", col.names=FALSE, row.names = FALSE)
 
 
-BegTime <- subsets$S10NULL0M1$DateTime[1]
 
 md <- CreateHRVData(Verbose = TRUE)
 md <- LoadBeatRR(md, FileName, RecordPath = ".", scale = 0.001, datetime = BegTime)
@@ -42,10 +55,16 @@ md <- LoadBeatRR(md, FileName, RecordPath = ".", scale = 0.001, datetime = BegTi
 md <- BuildNIHR(md)
 md <- InterpolateNIHR(md, freqhr = 4, method = "linear")
 md <- CreateTimeAnalysis(md, size = 300, interval = 7.8125)
+
+#Current Dumpster Fire -- export summary files so can write to a file
+export <- c(subsets$S10NULL0M1$id[1], md$TimeAnalysis$SDNN[,0], md$TimeAnalysis$pNN50, md$TimeAnalysis$rMMSD)
 md <- CreateFreqAnalysis(md)
 
+#Dumpster Fire
+head(md$FreqAnalysis[[1]])
 
 
+#Giant Dumpster Fire
 plot.xts(tmp3, main="Time Series Occupational Exposures and Heart Rate Variability")  #using all the defaults
 #png("chartTimeSeries.png",width=640,height=567,units="px")
 plot.xts(tmp3, screens=1, #screens=1 probably most appropriate for this application
