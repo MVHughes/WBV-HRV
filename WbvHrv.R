@@ -1,5 +1,5 @@
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(devtools, stats, AICcmodavg, arm, faraway, lme4, astsa, RHRV, pbkrtest, MASS, ggplot2, ggthemes, dplyr, timeSeries, timeDate, TSA, memisc, lubridate, forecast, zoo, Hmisc, reshape2, RColorBrewer, caTools, xts, scatterplot3d, lattice, latticeExtra, gridExtra, car)
+pacman::p_load(devtools, stats, scales, AICcmodavg, arm, faraway, lme4, astsa, RHRV, pbkrtest, MASS, ggplot2, ggthemes, dplyr, timeSeries, timeDate, TSA, memisc, lubridate, forecast, zoo, Hmisc, reshape2, RColorBrewer, caTools, xts, scatterplot3d, lattice, latticeExtra, gridExtra, car)
 
 options(max.print = 222)
 #FileLocation = "G:/HrvValuesOnly.csv"
@@ -84,12 +84,6 @@ export <- data.frame(RRSubsets[[i]]$RR)
 FileName = paste(RRSubsets[[i]]$id[1], "csv", sep = ".")
 write.table(export, FileName, sep=",", col.names=FALSE, row.names = FALSE)
 
-
-
-#RRSubsets[[i]]$DateTime <- format(RRSubsets[[i]]$DateTime, "%m/%d/%Y %H:%M:%S")
-
-BegTime <- RRSubsets[[i]]$DateTime[1]
-
 md <- CreateHRVData(Verbose = TRUE)
 md <- LoadBeatRR(md, FileName, RecordPath = ".", scale = 0.001, datetime = BegTime)
 
@@ -103,7 +97,7 @@ XTitle = "Time"
 YTitle = "Milliseconds"
 filename <-  paste("NIHR", RRSubsets[[i]]$id[1], "jpg", sep=".")
 jpeg(file=filename)
-PlotNIHR(md, main=MainTitle, xlab=XTitle, ylab=YTitle)
+PlotNIHR(md)
 dev.off()
 
 MainTitle = paste("Interpolated Heart Rate During ", RRSubsets[[i]]$Condition[1], " Condition for Subject ", RRSubsets[[i]]$Subject[1], sep = " ")
@@ -111,7 +105,7 @@ XTitle = "Time"
 YTitle = "Milliseconds"
 filename <-  paste("HR", RRSubsets[[i]]$id[1], "jpg", sep=".")
 jpeg(file=filename)
-PlotHR(md, main=MainTitle, xlab=XTitle, ylab=YTitle)
+PlotHR(md)
 dev.off()
 
 
@@ -169,7 +163,7 @@ jpeg(file=filename)
 ggplot(data=tmp, aes(y=RR, x=DateTime, colour = Condition)) + 
   geom_point(na.rm=FALSE) +
   xlab(XTitle) + ylab(YTitle) + ggtitle(MainTitle) +
-  scale_x_datetime(labels = date_format("%H:%M"))
+  scale_x_datetime(labels = scales::date_format("%H:%M"))
 dev.off()
 }
 
@@ -182,12 +176,11 @@ write.table(SubjStatistics, ExportFileName, sep=",", col.names=FALSE, row.names 
 
 SubjSubsets <- split(HrvValuesOnly, HrvValuesOnly$Subject, drop=TRUE)
 for (i in 1:18) {
-  id <- as.character.factor(SubjSubsets[[i]]$Subject[1])
+ 
   
-  SubjSubsets[[i]]$DateTime <- as.POSIXct(SubjSubsets[[i]]$DateTime, format = "%d/%m/%Y %H:%M:%S")
-  SubjSubsets[[i]]$DateTime <- format(SubjSubsets[[i]]$DateTime, "%m/%d/%Y %H:%M:%S")
+  BegTime <- format(strptime(as.character(SubjSubsets[[i]]$DateTime[1]), "%Y-%m-%d %H:%M:%S"), "%d/%m/%Y %H:%M:%S")
   
-  BegTime <- SubjSubsets[[i]]$DateTime[1]
+
   
   export <- data.frame(SubjSubsets[[i]]$RR)
   FileName = paste(SubjSubsets[[i]]$Subject[1], "csv", sep = ".")
@@ -207,7 +200,7 @@ for (i in 1:18) {
   YTitle = "Milliseconds"
   filename <-  paste("NIHR", SubjSubsets[[i]]$Subject[1], "jpg", sep=".")
   jpeg(file=filename)
-  PlotNIHR(md, main=MainTitle, xlab=XTitle, ylab=YTitle)
+  PlotNIHR(md)
   dev.off()
   
   MainTitle = paste("Interpolated Heart Rate for Subject ", SubjSubsets[[i]]$Subject[1], sep = " ")
@@ -215,7 +208,7 @@ for (i in 1:18) {
   YTitle = "Milliseconds"
   filename <-  paste("HR", SubjSubsets[[i]]$Subject[1], "jpg", sep=".")
   jpeg(file=filename)
-  PlotHR(md, main=MainTitle, xlab=XTitle, ylab=YTitle)
+  PlotHR(md)
   dev.off()
   
   md <- CreateTimeAnalysis(md, size = 300, interval = 7.8125)
@@ -253,6 +246,8 @@ for (i in 1:18) {
   #HFnu <- md$FreqAnalysis[[1]]$HF[1] / nu
   #LFHF <- md$FreqAnalysis[[1]]$LFHF[1]
   
+  id <- as.character.factor(SubjSubsets[[i]]$Subject[1])
+  
   SubjStatistics <- data_frame(id, BegTime, SDNN, pNN50, rMSSD)
   
   write.table(SubjStatistics, file = SubjExportFileName, append = TRUE, quote = FALSE, sep = ",", eol = "\n", row.names = FALSE, col.names = FALSE)
@@ -265,23 +260,20 @@ for (i in 1:18) {
   tmp$DateTime <- as.POSIXct(tmp$DateTime, format = "%m/%d/%Y %H:%M:%S")
   
   
-  MainTitle = paste("Interpolated Heart Rate During ", RRSubsets[[i]]$Condition[1], " Condition for Subject ", RRSubsets[[i]]$Subject[1], sep = " ")
-  filename <-  paste(MainTitle, "jpg", sep=".")
-  jpeg(file=filename)
-  PlotHR(md, main=MainTitle, xlab=XTitle, ylab=YTitle)
-  dev.off()
+
   MainTitle = paste("R-R Durations Over Entire Study for Subject ", SubjSubsets[[i]]$Subject[1], sep = " ")
-  XTitle = "Time"
+  filename <-  paste(MainTitle, SubjSubsets[[i]]$Subject[1], "jpg", sep=".")
+   XTitle = "Time"
     YTitle = "Milliseconds"
- 
+    jpeg(file=filename)
     ggplot(data=tmp, aes(y=RR, x=DateTime, colour = Condition)) + 
       geom_point(na.rm=FALSE) +
       xlab(XTitle) + ylab(YTitle) + ggtitle(MainTitle) +
-      scale_x_datetime(labels = date_format("%H:%M"))
+      scale_x_datetime(labels = scales::date_format("%H:%M"))
   dev.off()
   
 }
-)
+
 
 
 
